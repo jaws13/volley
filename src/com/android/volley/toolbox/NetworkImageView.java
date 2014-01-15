@@ -16,10 +16,7 @@
 package com.android.volley.toolbox;
 
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Matrix;
-import android.graphics.Paint;
+import android.graphics.*;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.ViewGroup.LayoutParams;
@@ -27,6 +24,7 @@ import android.widget.ImageView;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.ImageLoader.ImageContainer;
 import com.android.volley.toolbox.ImageLoader.ImageListener;
+import android.util.Log;
 
 /**
  * Handles fetching an image from a URL as well as the life-cycle of the
@@ -35,7 +33,8 @@ import com.android.volley.toolbox.ImageLoader.ImageListener;
 public class NetworkImageView extends ImageView {
     public enum BitmapProfile{
         ProfileLandingView,
-        ProfileDetailsView
+        ProfileDetailsView,
+        ProfileGoodOldView
     }
 
     /** The URL of the network image to load */
@@ -75,6 +74,16 @@ public class NetworkImageView extends ImageView {
         super(context, attrs, defStyle);
     }
 
+    public void setImageUrl(String url, ImageLoader imageLoader){
+        mUrl = url;
+        mImageLoader = imageLoader;
+        mScalingProfile = BitmapProfile.ProfileGoodOldView;
+        mBestHeight = 0;
+        mBestWidth = 0;
+        // The URL has potentially changed. See if we need to load it.
+        loadImageIfNecessary(false);
+
+    }
     /**
      * Sets URL of the image that should be loaded into this view. Note that calling this will
      * immediately either set the cached image (if available) or the default image specified by
@@ -180,13 +189,17 @@ public class NetworkImageView extends ImageView {
                     String cacheKey = null;
                     if(mScalingProfile.equals(BitmapProfile.ProfileLandingView)){
                         if(!fromDiskCache){
-                            displayBitmap = getModifiedBitmap(response.getBitmap(), mBestWidth, mBestHeight);
-                            cacheKey = mImageLoader.getCacheKey(mUrl, mBestWidth, mBestHeight);
-                            mImageLoader.putBitmap(cacheKey, displayBitmap);
+                            if(response.getBitmap().isRecycled()){
+                                cacheKey = mImageLoader.getCacheKey(mUrl, mBestWidth, mBestHeight);
+                            }else{
+                                displayBitmap = getModifiedBitmap(response.getBitmap(), mBestWidth, mBestHeight);
+                                cacheKey = mImageLoader.getCacheKey(mUrl, mBestWidth, mBestHeight);
+                                mImageLoader.putBitmap(cacheKey, displayBitmap);
+                            }
                         }else{
                             displayBitmap = response.getBitmap();
                         }
-                    }else{
+                    }else if(mScalingProfile.equals(BitmapProfile.ProfileDetailsView)){
                         int width = response.getBitmap().getWidth();
                         int height = response.getBitmap().getHeight();
                         if (height > mBestHeight) {
@@ -195,8 +208,25 @@ public class NetworkImageView extends ImageView {
                         }
 
                         if(!fromDiskCache){
-                            displayBitmap = getModifiedBitmap(response.getBitmap(), width, mBestHeight);
-                            cacheKey = mImageLoader.getCacheKey(mUrl, mBestWidth, mBestHeight);
+                            if (width > mBestWidth) {
+                                float tempHeight = (height * mBestWidth) / width;
+                                height = (int) tempHeight;
+
+                            }
+                            displayBitmap = getModifiedBitmap(response.getBitmap(), width, height);
+                            cacheKey = mImageLoader.getCacheKey(mUrl, width, height);
+                            mImageLoader.putBitmap(cacheKey, displayBitmap);
+                        }else{
+                            displayBitmap = response.getBitmap();
+                        }
+                    }else{
+                        //its one of those good old views - nothing really for us to do here
+                        int width = response.getBitmap().getWidth();
+                        int height = response.getBitmap().getHeight();
+
+                        if(!fromDiskCache){
+                            displayBitmap = getModifiedBitmap(response.getBitmap(), width, height);
+                            cacheKey = mImageLoader.getCacheKey(mUrl, width, height);
                             mImageLoader.putBitmap(cacheKey, displayBitmap);
                         }else{
                             displayBitmap = response.getBitmap();
@@ -274,7 +304,7 @@ public class NetworkImageView extends ImageView {
         Paint paint = new Paint();
         paint.setFilterBitmap(true);
         canvas.drawBitmap(originalImage, transformation, paint);
-        originalImage.recycle();
+        //originalImage.recycle();
         return newBitmap;
     }
 }
