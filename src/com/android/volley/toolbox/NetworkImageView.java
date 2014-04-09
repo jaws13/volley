@@ -188,55 +188,29 @@ public class NetworkImageView extends ImageView {
                     Bitmap displayBitmap = null;
                     String cacheKey = null;
                     if(mScalingProfile.equals(BitmapProfile.ProfileLandingView)){
-                        if(!fromDiskCache){
-                            if(response.getBitmap().isRecycled()){
-                                cacheKey = mImageLoader.getCacheKey(mUrl, 0, 0);
-                            }else{
-                                cacheKey = mImageLoader.getCacheKey(mUrl, 0, 0);
-                                mImageLoader.putBitmap(cacheKey, response.getBitmap());
-
-                            }
-                        }/*else{
+                        if(mImageLoader.isCached(mUrl, response.getBitmap().getWidth(), response.getBitmap().getHeight())){
                             displayBitmap = response.getBitmap();
-                        }*/
-                        displayBitmap = getModifiedBitmap(response.getBitmap(), mBestWidth, mBestHeight);
-                    }else if(mScalingProfile.equals(BitmapProfile.ProfileDetailsView)){
-                        int width = response.getBitmap().getWidth();
-                        int height = response.getBitmap().getHeight();
-                        /*if (height > mBestHeight) {
-                            float tempWidth = (width * mBestHeight) / height;
-                            width = (int) tempWidth;
-                        }
-
-                        if (response.getBitmap().getWidth() > mBestWidth) {
-                            float tempHeight = (height * mBestWidth) / response.getBitmap().getHeight();
-                            height = (int) tempHeight;
-                        }*/
-
-                        if(!fromDiskCache){
-                            cacheKey = mImageLoader.getCacheKey(mUrl, 0, 0);
+                        }else{
+                            displayBitmap = getModifiedBitmap(response.getBitmap(), mBestWidth, mBestHeight);
+                            cacheKey = mImageLoader.getCacheKey(mUrl, displayBitmap.getWidth(), displayBitmap.getHeight());
                             mImageLoader.putBitmap(cacheKey, response.getBitmap());
-
-                        }/*else{
+                        }
+                    }else if(mScalingProfile.equals(BitmapProfile.ProfileDetailsView)){
+                        if(mImageLoader.isCached(mUrl, response.getBitmap().getWidth(), response.getBitmap().getHeight())){
                             displayBitmap = response.getBitmap();
-                        }*/
-                        //Bitmap temp = Bitmap.createScaledBitmap(response.getBitmap(),
-                        //        mBestWidth, mBestHeight, true);
-
-                        int desiredWidth = getResizedDimension(mBestWidth, mBestHeight, width, height);
-                        int desiredHeight = getResizedDimension(mBestHeight, mBestWidth, height, width);
-                        displayBitmap = getModifiedBitmap(response.getBitmap(), desiredWidth, desiredHeight);
+                        }else{
+                            int width = response.getBitmap().getWidth();
+                            int height = response.getBitmap().getHeight();
+                            int desiredWidth = getResizedDimension(mBestWidth, mBestHeight, width, height);
+                            int desiredHeight = getResizedDimension(mBestHeight, mBestWidth, height, width);
+                            displayBitmap = getModifiedBitmap(response.getBitmap(), desiredWidth, desiredHeight);
+                            cacheKey = mImageLoader.getCacheKey(mUrl, displayBitmap.getWidth(), displayBitmap.getHeight());
+                            mImageLoader.putBitmap(cacheKey, response.getBitmap());
+                        }
                     }else{
                         //its one of those good old views - nothing really for us to do here
                         int width = response.getBitmap().getWidth();
                         int height = response.getBitmap().getHeight();
-
-                        if(!fromDiskCache){
-                            cacheKey = mImageLoader.getCacheKey(mUrl, 0, 0);
-                            mImageLoader.putBitmap(cacheKey, response.getBitmap());
-                        }/*else{
-                            displayBitmap = response.getBitmap();
-                        }*/
                         displayBitmap = getModifiedBitmap(response.getBitmap(), width, height);
                     }
                     NetworkImageView.this.setImageBitmap(displayBitmap);
@@ -260,7 +234,7 @@ public class NetworkImageView extends ImageView {
                     }*/
                 }
             }
-        }, 0, 0);
+        }, mBestWidth, mBestHeight);
 
         // update the ImageContainer to be the new bitmap container.
         mImageContainer = newContainer;
